@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دستیار هوشمند گفتاری و متنی</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @font-face {
+            font-family: 'Vazir';
+            src: url('https://cdn.jsdelivr.net/npm/vazir-font@30.1.0/dist/Vazir.eot');
+            src: url('https://cdn.jsdelivr.net/npm/vazir-font@30.1.0/dist/Vazir.eot?#iefix') format('embedded-opentype'),
+                 url('https://cdn.jsdelivr.net/npm/vazir-font@30.1.0/dist/Vazir.woff2') format('woff2'),
+                 url('https://cdn.jsdelivr.net/npm/vazir-font@30.1.0/dist/Vazir.woff') format('woff'),
+                 url('https://cdn.jsdelivr.net/npm/vazir-font@30.1.0/dist/Vazir.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        
+        body {
+            font-family: 'Vazir', sans-serif;
+            background-color: #f7f9fc;
+        }
+        
+        .chat-container {
+            height: calc(100vh - 240px);
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        
+        .message {
+            max-width: 80%;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        
+        .user-message {
+            background-color: #4f46e5;
+            color: white;
+            border-radius: 18px 18px 4px 18px;
+        }
+        
+        .bot-message {
+            background-color: #e5e7eb;
+            color: #1f2937;
+            border-radius: 18px 18px 18px 4px;
+        }
+        
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .record-btn.recording {
+            background-color: #ef4444;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            margin: 0 2px;
+            background-color: #6b7280;
+            border-radius: 50%;
+            display: inline-block;
+            animation: typing 1.4s ease-in-out infinite;
+        }
+        
+        .typing-indicator span:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typing {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0); }
+        }
+        
+        .history-item {
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            background-color: #f3f4f6;
+            transform: translateX(-5px);
+        }
+        
+        .sidebar {
+            width: 280px;
+            transition: all 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                right: -280px;
+                height: 100vh;
+                z-index: 50;
+            }
+            
+            .sidebar.open {
+                right: 0;
+            }
+            
+            .main-content {
+                margin-right: 0 !important;
+            }
+        }
+        
+        .message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="sidebar bg-white shadow-lg p-4 flex flex-col h-full overflow-hidden" id="sidebar">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-xl font-bold text-indigo-700">تاریخچه گفتگوها</h1>
+                <button id="sidebar-close" class="md:hidden text-gray-500 hover:text-gray-800">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="overflow-y-auto flex-grow">
+                <div id="history-container" class="space-y-2">
+                    <!-- History items will be added here -->
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <div class="mb-4">
+                    <label for="model-select" class="block text-sm font-medium text-gray-700 mb-1">انتخاب مدل:</label>
+                    <select id="model-select" class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="llama3">Llama 3</option>
+                        <option value="mistral">Mistral</option>
+                        <option value="gemma">Gemma</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="server-url" class="block text-sm font-medium text-gray-700 mb-1">آدرس سرور:</label>
+                    <input type="text" id="server-url" value="http://localhost:11434" class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                
+                <button id="clear-history" class="mt-4 w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg transition-colors duration-300">
+                    پاک کردن تاریخچه
+                </button>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content flex-1 flex flex-col overflow-hidden mr-0 md:mr-280" id="main-content">
+            <!-- Header -->
+            <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center">
+                <button id="sidebar-toggle" class="md:hidden text-gray-600 hover:text-indigo-600">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                
+                <h1 class="text-2xl font-bold text-indigo-700">دستیار هوشمند گفتاری و متنی</h1>
+                
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <button id="theme-toggle" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 p-2 rounded-full transition-colors duration-300">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Chat Area -->
+            <div class="flex-1 overflow-hidden p-4 md:p-6 flex flex-col">
+                <div id="chat-container" class="chat-container bg-white rounded-lg shadow-sm p-4 flex-1">
+                    <div class="welcome-message text-center py-10">
+                        <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-robot text-2xl text-indigo-600"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-800 mb-2">به دستیار هوشمند خوش آمدید</h2>
+                        <p class="text-gray-600">می‌توانید با نوشتن پیام یا استفاده از ورودی صوتی با من صحبت کنید.</p>
+                    </div>
+                </div>
+                
+                <!-- Voice Recognition UI -->
+                <div id="voice-recognition-panel" class="bg-white rounded-lg shadow-sm p-4 mt-4 hidden">
+                    <div class="flex flex-col items-center">
+                        <div id="voice-status" class="text-gray-600 mb-2">آماده برای شروع ضبط</div>
+                        <div class="flex items-center justify-center mb-4">
+                            <button id="record-btn" class="record-btn bg-indigo-600 hover:bg-indigo-700 text-white h-16 w-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300">
+                                <i class="fas fa-microphone text-xl"></i>
+                            </button>
+                        </div>
+                        <div id="transcript-container" class="w-full bg-gray-100 rounded-lg p-3 mb-4 min-h-[80px] max-h-[150px] overflow-y-auto hidden">
+                            <p id="transcript-text" class="text-gray-800"></p>
+                        </div>
+                        <div id="voice-controls" class="flex space-x-4 space-x-reverse hidden">
+                            <button id="send-transcript" class="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-lg shadow-md flex items-center">
+                                <i class="fas fa-paper-plane mr-2"></i>
+                                ارسال
+                            </button>
+                            <button id="cancel-transcript" class="bg-red-600 hover:bg-red-700 text-white py-2 px-6 rounded-lg shadow-md flex items-center">
+                                <i class="fas fa-times mr-2"></i>
+                                لغو
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Input Area -->
+                <div class="bg-white rounded-lg shadow-sm p-4 mt-4">
+                    <div class="flex items-center mb-2">
+                        <button id="toggle-input-mode" class="text-indigo-600 hover:text-indigo-800 px-3 py-1 rounded-full flex items-center text-sm transition-colors duration-300">
+                            <i id="input-mode-icon" class="fas fa-keyboard mr-1"></i>
+                            <span id="input-mode-text">حالت متنی</span>
+                        </button>
+                    </div>
+                    
+                    <div id="text-input-container" class="relative">
+                        <textarea id="message-input" placeholder="پیام خود را بنویسید..." class="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                        <button id="send-btn" class="absolute left-2 bottom-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors duration-300">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const chatContainer = document.getElementById('chat-container');
+            const messageInput = document.getElementById('message-input');
+            const sendBtn = document.getElementById('send-btn');
+            const recordBtn = document.getElementById('record-btn');
+            const voiceStatus = document.getElementById('voice-status');
+            const voiceRecognitionPanel = document.getElementById('voice-recognition-panel');
+            const textInputContainer = document.getElementById('text-input-container');
+            const toggleInputModeBtn = document.getElementById('toggle-input-mode');
+            const inputModeIcon = document.getElementById('input-mode-icon');
+            const inputModeText = document.getElementById('input-mode-text');
+            const transcriptContainer = document.getElementById('transcript-container');
+            const transcriptText = document.getElementById('transcript-text');
+            const voiceControls = document.getElementById('voice-controls');
+            const sendTranscriptBtn = document.getElementById('send-transcript');
+            const cancelTranscriptBtn = document.getElementById('cancel-transcript');
+            const historyContainer = document.getElementById('history-container');
+            const clearHistoryBtn = document.getElementById('clear-history');
+            const modelSelect = document.getElementById('model-select');
+            const serverUrl = document.getElementById('server-url');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+            const sidebarClose = document.getElementById('sidebar-close');
+            const sidebar = document.getElementById('sidebar');
+            const themeToggle = document.getElementById('theme-toggle');
+            
+            // Variables
+            let isRecording = false;
+            let recognition;
+            let currentTranscript = '';
+            let conversationHistory = [];
+            let currentConversationId = generateId();
+            let conversations = {};
+            
+            // Initialize Web Speech API
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                recognition = new SpeechRecognition();
+                recognition.lang = 'fa-IR'; // تنظیم زبان به فارسی
+                recognition.interimResults = false; // فقط نتایج نهایی
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    isRecording = true;
+                    voiceStatus.textContent = 'در حال ضبط...';
+                    recordBtn.classList.add('recording');
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    currentTranscript = transcript;
+                    transcriptText.textContent = currentTranscript;
+                    transcriptContainer.classList.remove('hidden');
+                    voiceControls.classList.remove('hidden');
+                };
+
+                recognition.onend = () => {
+                    isRecording = false;
+                    voiceStatus.textContent = 'ضبط متوقف شد';
+                    recordBtn.classList.remove('recording');
+                };
+
+                recognition.onerror = (event) => {
+                    voiceStatus.textContent = `خطا در تشخیص صدا: ${event.error}`;
+                    console.error('Speech recognition error:', event.error);
+                    isRecording = false;
+                    recordBtn.classList.remove('recording');
+                };
+            } else {
+                voiceStatus.textContent = 'مرورگر شما از Web Speech API پشتیبانی نمی‌کند';
+                recordBtn.disabled = true;
+            }
+
+            // Toggle between text and voice input
+            function toggleInputMode() {
+                if (voiceRecognitionPanel.classList.contains('hidden')) {
+                    voiceRecognitionPanel.classList.remove('hidden');
+                    textInputContainer.classList.add('hidden');
+                    inputModeIcon.classList.remove('fa-keyboard');
+                    inputModeIcon.classList.add('fa-comment-alt');
+                    inputModeText.textContent = 'حالت متنی';
+                } else {
+                    voiceRecognitionPanel.classList.add('hidden');
+                    textInputContainer.classList.remove('hidden');
+                    inputModeIcon.classList.remove('fa-comment-alt');
+                    inputModeIcon.classList.add('fa-keyboard');
+                    inputModeText.textContent = 'حالت گفتاری';
+                    if (isRecording) {
+                        recognition.stop();
+                    }
+                }
+            }
+            
+            // Send message to backend
+            async function sendToOllama(text) {
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: text,
+                            conversation_id: currentConversationId,
+                            user_id: 'default_user',
+                            model: modelSelect.value,
+                            host: serverUrl.value
+                        })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    }
+                    const data = await response.json();
+                    return data.response;
+                } catch (error) {
+                    console.error('Error:', error);
+                    return `خطا در ارتباط با سرور: ${error.message}`;
+                }
+            }
+            
+            // Add a message to the chat
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', 'p-4', 'mb-4');
+                if (sender === 'user') {
+                    messageDiv.classList.add('user-message', 'mr-auto');
+                } else {
+                    messageDiv.classList.add('bot-message', 'ml-auto');
+                }
+                messageDiv.textContent = text;
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                conversationHistory.push({ role: sender, content: text });
+                saveConversation();
+                updateConversationsList();
+            }
+            
+            // Show typing indicator
+            function showTypingIndicator() {
+                const typingDiv = document.createElement('div');
+                typingDiv.id = 'typing-indicator';
+                typingDiv.classList.add('typing-indicator', 'bot-message', 'p-4', 'ml-auto');
+                typingDiv.innerHTML = `<span></span><span></span><span></span>`;
+                chatContainer.appendChild(typingDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            // Remove typing indicator
+            function removeTypingIndicator() {
+                const typingIndicator = document.getElementById('typing-indicator');
+                if (typingIndicator) typingIndicator.remove();
+            }
+            
+            // Handle sending a message
+            async function handleSendMessage(text) {
+                if (!text.trim()) return;
+                addMessage(text, 'user');
+                showTypingIndicator();
+                const response = await sendToOllama(text);
+                removeTypingIndicator();
+                addMessage(response, 'bot');
+            }
+            
+            // Generate a unique ID
+            function generateId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+            
+            // Save current conversation
+            async function saveConversation() {
+                if (conversationHistory.length === 0) return;
+                let title = conversationHistory[0].content;
+                title = title.length > 30 ? title.substring(0, 30) + '...' : title;
+                conversations[currentConversationId] = {
+                    id: currentConversationId,
+                    title: title,
+                    timestamp: new Date().toISOString(),
+                    messages: conversationHistory,
+                    model: modelSelect.value
+                };
+                await fetch('/api/conversation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        conversation_id: currentConversationId,
+                        user_id: 'default_user',
+                        title: title,
+                        model: modelSelect.value
+                    })
+                });
+            }
+            
+            // Load conversations from backend
+            async function loadConversations() {
+                const response = await fetch('/api/conversations?user_id=default_user');
+                const data = await response.json();
+                conversations = {};
+                data.conversations.forEach(conv => {
+                    conversations[conv.id] = {
+                        id: conv.id,
+                        title: conv.title,
+                        model: conv.model,
+                        timestamp: conv.timestamp,
+                        messages: []
+                    };
+                });
+                updateConversationsList();
+            }
+            
+            // Update conversations list in sidebar
+            function updateConversationsList() {
+                historyContainer.innerHTML = '';
+                const sortedConversations = Object.values(conversations).sort((a, b) => 
+                    new Date(b.timestamp) - new Date(a.timestamp)
+                );
+                if (sortedConversations.length === 0) {
+                    const emptyState = document.createElement('div');
+                    emptyState.classList.add('text-center', 'py-4', 'text-gray-500');
+                    emptyState.textContent = 'تاریخچه‌ای وجود ندارد';
+                    historyContainer.appendChild(emptyState);
+                    return;
+                }
+                sortedConversations.forEach(conv => {
+                    const historyItem = document.createElement('div');
+                    historyItem.classList.add('history-item', 'p-3', 'rounded-lg', 'cursor-pointer', 'hover:bg-gray-100', 'flex', 'justify-between', 'items-center');
+                    if (conv.id === currentConversationId) {
+                        historyItem.classList.add('bg-indigo-50', 'border-r-4', 'border-indigo-500');
+                    }
+                    historyItem.innerHTML = `
+                        <div class="flex-1 overflow-hidden">
+                            <div class="text-gray-800 font-medium truncate">${conv.title}</div>
+                            <div class="text-xs text-gray-500">
+                                ${new Date(conv.timestamp).toLocaleDateString('fa-IR')} · ${conv.model}
+                            </div>
+                        </div>
+                        <button class="delete-conversation text-gray-400 hover:text-red-500 hidden group-hover:block" data-id="${conv.id}">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    `;
+                    historyItem.addEventListener('click', (e) => {
+                        if (e.target.closest('.delete-conversation')) return;
+                        loadConversation(conv.id);
+                    });
+                    const deleteBtn = historyItem.querySelector('.delete-conversation');
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        deleteConversation(conv.id);
+                    });
+                    historyContainer.appendChild(historyItem);
+                });
+            }
+            
+            // Load a specific conversation
+            async function loadConversation(id) {
+                const response = await fetch(`/api/conversation/${id}`);
+                const data = await response.json();
+                currentConversationId = id;
+                conversationHistory = data.messages;
+                modelSelect.value = conversations[id].model || 'llama3';
+                chatContainer.innerHTML = '';
+                conversationHistory.forEach(msg => addMessage(msg.content, msg.role));
+                updateConversationsList();
+                if (window.innerWidth < 768) {
+                    sidebar.classList.remove('open');
+                }
+            }
+            
+            // Delete a conversation
+            async function deleteConversation(id) {
+                if (confirm('آیا از حذف این گفتگو اطمینان دارید؟')) {
+                    await fetch(`/api/conversation/${id}`, { method: 'DELETE' });
+                    delete conversations[id];
+                    if (id === currentConversationId) {
+                        startNewConversation();
+                    }
+                    updateConversationsList();
+                }
+            }
+            
+            // Start a new conversation
+            function startNewConversation() {
+                currentConversationId = generateId();
+                conversationHistory = [];
+                chatContainer.innerHTML = `
+                    <div class="welcome-message text-center py-10">
+                        <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-robot text-2xl text-indigo-600"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-gray-800 mb-2">به دستیار هوشمند خوش آمدید</h2>
+                        <p class="text-gray-600">می‌توانید با نوشتن پیام یا استفاده از ورودی صوتی با من صحبت کنید.</p>
+                    </div>
+                `;
+                updateConversationsList();
+            }
+            
+            // Record audio using Web Speech API
+            recordBtn.addEventListener('click', () => {
+                if (!recognition) return;
+                if (!isRecording) {
+                    recognition.start();
+                } else {
+                    recognition.stop();
+                }
+            });
+            
+            // Event Listeners
+            toggleInputModeBtn.addEventListener('click', toggleInputMode);
+            sendBtn.addEventListener('click', () => {
+                const text = messageInput.value.trim();
+                if (text) {
+                    handleSendMessage(text);
+                    messageInput.value = '';
+                }
+            });
+            messageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendBtn.click();
+                }
+            });
+            sendTranscriptBtn.addEventListener('click', () => {
+                if (currentTranscript.trim()) {
+                    handleSendMessage(currentTranscript);
+                    transcriptContainer.classList.add('hidden');
+                    voiceControls.classList.add('hidden');
+                    currentTranscript = '';
+                    transcriptText.textContent = '';
+                    voiceStatus.textContent = 'آماده برای شروع ضبط';
+                }
+            });
+            cancelTranscriptBtn.addEventListener('click', () => {
+                transcriptContainer.classList.add('hidden');
+                voiceControls.classList.add('hidden');
+                currentTranscript = '';
+                transcriptText.textContent = '';
+                voiceStatus.textContent = 'آماده برای شروع ضبط';
+            });
+            clearHistoryBtn.addEventListener('click', async () => {
+                if (confirm('آیا از پاک کردن تمام تاریخچه اطمینان دارید؟')) {
+                    for (const id in conversations) {
+                        await fetch(`/api/conversation/${id}`, { method: 'DELETE' });
+                    }
+                    conversations = {};
+                    startNewConversation();
+                }
+            });
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+            });
+            sidebarClose.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+            });
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                themeToggle.innerHTML = document.documentElement.classList.contains('dark') ?
+                    '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+            });
+            
+            // Initialize
+            loadConversations();
+        });
+    </script>
+</body>
+</html>

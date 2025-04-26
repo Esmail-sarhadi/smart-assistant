@@ -33,6 +33,7 @@ def chat():
     c = conn.cursor()
     c.execute("INSERT INTO messages (conversation_id, sender, content) VALUES (?, ?, ?)",
               (conversation_id, 'user', message))
+
     
     c.execute("SELECT sender, content FROM messages WHERE conversation_id = ? ORDER BY timestamp LIMIT 5",
               (conversation_id,))

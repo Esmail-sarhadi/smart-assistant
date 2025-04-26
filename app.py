@@ -8,6 +8,7 @@ app = Flask(__name__)
 app.static_folder = 'static'
 CORS(app)
 
+
 def init_db():
     conn = sqlite3.connect('chat_history.db')
     c = conn.cursor()

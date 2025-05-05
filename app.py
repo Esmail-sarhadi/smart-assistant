@@ -9,7 +9,7 @@ app.static_folder = 'static'
 CORS(app)
 
 def init_db():
-    conn = sqlite3.connect('chat_history.db')
+    conn = sqlite3.connect('chat_history.db') 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS conversations 
                  (id TEXT, user_id TEXT, title TEXT, model TEXT, timestamp TEXT)''')

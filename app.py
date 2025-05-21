@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime 
 
 app = Flask(__name__)  
-app.static_folder = 'static'
+app.static_folder = 'static' 
 CORS(app)
 
 def init_db():

@@ -37,7 +37,7 @@ def chat():
     
     c.execute("SELECT sender, content FROM messages WHERE conversation_id = ? ORDER BY timestamp LIMIT 5",
               (conversation_id,))
-    history = [{'role': row[0], 'content': row[1]} for row in c.fetchall()]
+    history = [{'role': row[0], 'content': row[1]} for row in c.fetchall()] 
     
     # اضافه کردن پرامپت سیستمی برای اطمینان از پاسخ به فارسی
     system_prompt = (

@@ -27,7 +27,7 @@ def chat():
     conversation_id = data.get('conversation_id')
     user_id = data.get('user_id', 'default_user')
     model = data.get('model', 'llama3')
-    host = data.get('host', 'http://localhost:11434')
+    host = data.get('host', 'http://localhost:11434') 
 
     conn = sqlite3.connect('chat_history.db')
     c = conn.cursor()

@@ -20,7 +20,7 @@ def init_db():
 
 init_db()
 
-@app.route('/api/chat', methods=['POST'])
+@app.route('/api/chat', methods=['POST']) 
 def chat():
     data = request.json
     message = data.get('message')

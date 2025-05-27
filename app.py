@@ -12,7 +12,7 @@ def init_db():
     conn = sqlite3.connect('chat_history.db')  
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS conversations 
-                 (id TEXT, user_id TEXT, title TEXT, model TEXT, timestamp TEXT)''')
+                 (id TEXT, user_id TEXT, title TEXT, model TEXT, timestamp TEXT)''') 
     c.execute('''CREATE TABLE IF NOT EXISTS messages 
                  (conversation_id TEXT, sender TEXT, content TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()

@@ -79,7 +79,7 @@ def get_conversations():
 
 @app.route('/api/conversation/<conversation_id>', methods=['GET'])
 def get_conversation(conversation_id):
-    conn = sqlite3.connect('chat_history.db')
+    conn = sqlite3.connect('chat_history.db') 
     c = conn.cursor()
     c.execute("SELECT sender, content FROM messages WHERE conversation_id = ? ORDER BY timestamp", (conversation_id,))
     messages = [{'role': row[0], 'content': row[1]} for row in c.fetchall()]

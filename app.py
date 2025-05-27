@@ -115,7 +115,7 @@ def delete_conversation(conversation_id):
 
 @app.route('/')
 def serve_frontend():
-    return app.send_static_file('index.html')
+    return app.send_static_file('index.html') 
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
